@@ -239,6 +239,7 @@
         <p><strong>Level 4:</strong> Max Bet $25,000 (Cost: $2,500) <button id="buy-level-4" onclick="buyTable(4, 2500, 25000)">Buy</button></p>
         <p><strong>Level 5:</strong> Max Bet $50,000 (Cost: $5,000) <button id="buy-level-5" onclick="buyTable(5, 5000, 50000)">Buy</button></p>
         <button onclick="hideTableMenu()">Back to Game</button>
+        <button onclick="resetGame()">Reset Game</button> <!-- Added Reset Button -->
     </div>
     <div id="pregame-trivia-topic-selection" style="display:none">
         <h2>Pre-Game Trivia Bonus</h2>
@@ -291,7 +292,6 @@
         </div>
     </div>
 
-    <!-- JavaScript remains unchanged as functionality is preserved -->
     <script>
         let bankroll = 100;
         let dealerBankroll = 100;
@@ -405,6 +405,56 @@
             ]
         };
 
+        // Function to save game state
+        function saveGame() {
+            const gameState = {
+                bankroll: bankroll,
+                dealerBankroll: dealerBankroll,
+                unlockedTables: unlockedTables,
+                currentTableLevel: currentTableLevel,
+                maxBet: maxBet,
+                askedQuestions: askedQuestions,
+                firstRoundStarted: firstRoundStarted
+            };
+            localStorage.setItem('blackjackRoyaleSave', JSON.stringify(gameState));
+        }
+
+        // Function to load game state
+        function loadGame() {
+            const savedData = localStorage.getItem('blackjackRoyaleSave');
+            if (savedData) {
+                const gameState = JSON.parse(savedData);
+                bankroll = gameState.bankroll;
+                dealerBankroll = gameState.dealerBankroll;
+                unlockedTables = gameState.unlockedTables;
+                currentTableLevel = gameState.currentTableLevel;
+                maxBet = gameState.maxBet;
+                askedQuestions = gameState.askedQuestions;
+                firstRoundStarted = gameState.firstRoundStarted;
+            }
+        }
+
+        // Function to reset game
+        function resetGame() {
+            if (confirm("Are you sure you want to reset the game? All progress will be lost.")) {
+                localStorage.removeItem('blackjackRoyaleSave');
+                bankroll = 100;
+                dealerBankroll = 100;
+                unlockedTables = [1];
+                currentTableLevel = 1;
+                maxBet = 1000;
+                askedQuestions = {
+                    "History": [], "Geography": [], "Science": [], "Pop Culture": [],
+                    "Sports": [], "Entertainment": [], "General Knowledge": []
+                };
+                firstRoundStarted = false;
+                document.getElementById("game-area").style.display = "none";
+                document.getElementById("welcome-screen").style.display = "block";
+                updateDisplay();
+                showMessage("Game has been reset to default.");
+            }
+        }
+
         function showMessage(message, showOptions = false) {
             document.getElementById("message-text").innerText = message;
             if (showOptions) {
@@ -420,27 +470,33 @@
         }
 
         function closeMessage() { document.getElementById("message-modal").style.display = "none"; }
+
         function startPreGameTrivia() {
             document.getElementById("welcome-screen").style.display = "none";
             document.getElementById("pregame-trivia-topic-selection").style.display = "block";
         }
+
         function skipToBlackjack() {
             document.getElementById("welcome-screen").style.display = "none";
             document.getElementById("game-area").style.display = "block";
             firstRoundStarted = true;
+            saveGame();  // Save after starting the game
             updateDisplay();
         }
+
         function showTableMenu() {
             if (gameInProgress) { showMessage("Finish the current round before changing tables!"); return; }
             document.getElementById("game-area").style.display = "none";
             document.getElementById("table-menu").style.display = "block";
             updateTableMenu();
         }
+
         function hideTableMenu() {
             document.getElementById("table-menu").style.display = "none";
             document.getElementById("game-area").style.display = "block";
             updateDisplay();
         }
+
         function updateTableMenu() {
             for (let level = 2; level <= 5; level++) {
                 const button = document.getElementById(`buy-level-${level}`);
@@ -448,6 +504,7 @@
                 else { button.innerText = "Buy"; button.disabled = false; }
             }
         }
+
         function buyTable(level, cost, newMaxBet) {
             if (bankroll < cost) { showMessage(`You need $${cost} to unlock this table!`); return; }
             if (unlockedTables.includes(level)) { showMessage(`You already unlocked Table Level ${level}!`); return; }
@@ -458,49 +515,60 @@
             updateDisplay();
             updateTableMenu();
             showMessage(`Table Level ${level} unlocked! Max bet is now $${maxBet}.`);
+            saveGame();  // Save after unlocking a table
         }
+
         function setBet(amount) {
             const betInput = document.getElementById("bet-amount");
             const cappedAmount = Math.min(amount, maxBet, bankroll);
             betInput.value = cappedAmount;
         }
+
         function setMaxBet() {
             const betInput = document.getElementById("bet-amount");
             const maxPossibleBet = Math.min(maxBet, bankroll);
             betInput.value = maxPossibleBet;
         }
+
         function takeWinnings() {
             document.getElementById("pregame-trivia").style.display = "none";
             document.getElementById("game-area").style.display = "block";
             document.getElementById("message-modal").style.display = "none";
             firstRoundStarted = true;
+            saveGame();  // Save after taking winnings
             showMessage("Starting Blackjack with your bankroll of $" + bankroll + "!");
             updateDisplay();
         }
+
         function continueTrivia() {
             document.getElementById("message-modal").style.display = "none";
             showPreGameTrivia();
         }
+
         function drawCard() {
             const values = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"];
             const value = values[Math.floor(Math.random() * values.length)];
             const suit = suits[Math.floor(Math.random() * suits.length)];
             return { value, suit };
         }
+
         function cardValue(card) {
             if (["J", "Q", "K"].includes(card.value)) return 10;
             if (card.value === "A") return 11;
             return parseInt(card.value);
         }
+
         function calculateHandTotal(hand) {
             let total = hand.reduce((sum, card) => sum + cardValue(card), 0);
             let aces = hand.filter(card => card.value === "A").length;
             while (total > 21 && aces > 0) { total -= 10; aces--; }
             return total;
         }
+
         function formatCard(card) {
             return `<div class="card ${card.suit === '♥' || card.suit === '♦' ? 'hearts' : 'spades'}">${card.value}<span class="suit">${card.suit}</span></div>`;
         }
+
         function updateDisplay() {
             document.getElementById("player-hand").innerHTML = playerHand.map(formatCard).join("");
             document.getElementById("dealer-hand").innerHTML = gameInProgress ? formatCard(dealerHand[0]) + '<div class="card">?</div>' : dealerHand.map(formatCard).join("");
@@ -517,16 +585,19 @@
                 document.getElementById("split-total").innerText = calculateHandTotal(splitHand);
             }
         }
+
         function selectPreGameTopic(topic) {
             selectedPreGameTopic = topic;
             document.getElementById("pregame-trivia-topic-selection").style.display = "none";
             showPreGameTrivia();
         }
+
         function selectTriviaTopic(topic) {
             selectedTriviaTopic = topic;
             document.getElementById("trivia-topic-selection").style.display = "none";
             showTrivia();
         }
+
         function showPreGameTrivia() {
             if (preGameTriviaAttempts < 3 && !firstRoundStarted) {
                 const questions = triviaQuestions[selectedPreGameTopic];
@@ -536,6 +607,7 @@
                     document.getElementById("pregame-trivia").style.display = "none";
                     document.getElementById("game-area").style.display = "block";
                     firstRoundStarted = true;
+                    saveGame();  // Save after starting the game
                     updateDisplay();
                     return;
                 }
@@ -548,22 +620,26 @@
                 document.getElementById("pregame-trivia").style.display = "none";
                 document.getElementById("game-area").style.display = "block";
                 firstRoundStarted = true;
+                saveGame();  // Save after starting the game
                 showMessage("Pre-game trivia complete! Start your first round.");
                 updateDisplay();
             }
         }
+
         function answerPreGameTrivia(choice) {
             const questions = triviaQuestions[selectedPreGameTopic];
             const trivia = questions.find(t => t.question === document.getElementById("pregame-trivia-question").innerText);
             if (choice === trivia.answer) {
                 bankroll += 100;
                 preGameTriviaAttempts++;
+                saveGame();  // Save after answering trivia
                 if (preGameTriviaAttempts < 3) { showMessage(`Correct! Your bankroll is now $${bankroll}.`, true); }
                 else {
                     showMessage(`Correct! Your bankroll is now $${bankroll}. You've answered all 3 questions! Starting Blackjack.`);
                     document.getElementById("pregame-trivia").style.display = "none";
                     document.getElementById("game-area").style.display = "block";
                     firstRoundStarted = true;
+                    saveGame();  // Save after starting the game
                     updateDisplay();
                 }
             } else {
@@ -571,9 +647,11 @@
                 document.getElementById("pregame-trivia").style.display = "none";
                 document.getElementById("game-area").style.display = "block";
                 firstRoundStarted = true;
+                saveGame();  // Save after starting the game
                 updateDisplay();
             }
         }
+
         function startRound() {
             if (gameInProgress) return;
             let betInput = parseInt(document.getElementById("bet-amount").value);
@@ -595,6 +673,7 @@
             updateDisplay();
             if (playerTotal === 21) { endRound(true); }
         }
+
         function hit(split = false) {
             if (!gameInProgress) return;
             const targetHand = split ? splitHand : playerHand;
@@ -604,11 +683,14 @@
             updateDisplay();
             if (calculateHandTotal(targetHand) > 21) { if (isSplit && !split) hit(true); else endRound(); }
         }
+
         function stand(split = false) {
             if (!gameInProgress) return;
             if (isSplit && !split) { hit(true); } else { dealerPlay(); endRound(); }
         }
+
         function dealerPlay() { while (calculateHandTotal(dealerHand) < 17) { dealerHand.push(drawCard()); } }
+
         function doubleDown(split = false) {
             if (!gameInProgress || !canDouble || bankroll < currentBet) return;
             bankroll -= currentBet;
@@ -619,6 +701,7 @@
             updateDisplay();
             if (calculateHandTotal(targetHand) <= 21 && (!isSplit || split)) { dealerPlay(); endRound(); }
         }
+
         function split() {
             if (!gameInProgress || !canSplit || bankroll < currentBet) return;
             splitHand = [playerHand.pop()];
@@ -633,6 +716,7 @@
             updateDisplay();
             toggleButtons(true);
         }
+
         function endRound(blackjack = false) {
             gameInProgress = false;
             const playerTotal = calculateHandTotal(playerHand);
@@ -669,11 +753,13 @@
             canSplit = false;
             document.getElementById("split-hand").style.display = "none";
             updateDisplay();
+            saveGame();  // Save after ending a round
             if (bankroll <= 0) {
                 showMessage("You're out of money! Answer a trivia question to get back in the game!");
                 document.getElementById("trivia-topic-selection").style.display = "block";
             }
         }
+
         function toggleButtons(active) {
             document.getElementById("start-round-btn").disabled = active;
             document.getElementById("hit-btn").disabled = !active;
@@ -681,6 +767,7 @@
             document.getElementById("double-btn").disabled = !active || !canDouble;
             document.getElementById("split-btn").disabled = !active || !canSplit;
         }
+
         function showTrivia() {
             const questions = triviaQuestions[selectedTriviaTopic];
             const availableQuestions = questions.filter(q => !askedQuestions[selectedTriviaTopic].includes(q.question));
@@ -691,6 +778,7 @@
                 document.getElementById("trivia-area").style.display = "none";
                 document.getElementById("start-round-btn").disabled = false;
                 updateDisplay();
+                saveGame();  // Save after resetting bankroll
                 return;
             }
             currentTrivia = availableQuestions[Math.floor(Math.random() * availableQuestions.length)];
@@ -700,6 +788,7 @@
             document.getElementById("trivia-area").style.display = "block";
             document.getElementById("start-round-btn").disabled = true;
         }
+
         function answerTrivia(choice) {
             const triviaArea = document.getElementById("trivia-area");
             if (choice === currentTrivia.answer) {
@@ -713,9 +802,19 @@
             triviaArea.style.display = "none";
             document.getElementById("start-round-btn").disabled = false;
             updateDisplay();
+            saveGame();  // Save after answering trivia
         }
-        window.onload = function() { document.getElementById("welcome-screen").style.display = "block"; };
-        updateDisplay();
+
+        // Load game state on startup
+        window.onload = function() {
+            loadGame();
+            if (firstRoundStarted) {
+                document.getElementById("game-area").style.display = "block";
+            } else {
+                document.getElementById("welcome-screen").style.display = "block";
+            }
+            updateDisplay();
+        };
     </script>
 </body>
 </html>
